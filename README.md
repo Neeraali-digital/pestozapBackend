@@ -39,7 +39,24 @@ backend/
 └── requirements.txt         # Python dependencies
 ```
 
-## Setup Instructions
+## Quick Setup
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd backend
+
+# Run the setup script
+python setup_dev.py
+
+# Create superuser
+python manage.py createsuperuser
+
+# Run the server
+python manage.py runserver
+```
+
+## Manual Setup Instructions
 
 ### 1. Environment Setup
 
@@ -60,13 +77,16 @@ pip install -r requirements.txt
 ### 2. Database Setup
 
 ```bash
-# Install PostgreSQL and create database
-createdb pestozap_db
-
 # Copy environment file
 cp .env.example .env
 
-# Update .env with your database credentials
+# For development (SQLite - default):
+# Leave DB_NAME and DB_USER empty in .env for SQLite
+
+# For production (PostgreSQL):
+# Install PostgreSQL and create database
+# createdb pestozap_db
+# Update .env with your PostgreSQL credentials
 ```
 
 ### 3. Django Setup
