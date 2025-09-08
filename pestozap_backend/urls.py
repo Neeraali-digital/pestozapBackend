@@ -20,6 +20,7 @@ urlpatterns = [
         path('auth/', include('djoser.urls.jwt')),
         path('users/', include('apps.users.urls')),
         path('blog/', include('apps.blog.urls')),
+        path('admin/', include('apps.blog.admin_urls')),
     ])),
     
     # Router URLs
