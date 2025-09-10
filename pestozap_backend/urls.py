@@ -21,6 +21,10 @@ urlpatterns = [
         path('users/', include('apps.users.urls')),
         path('blog/', include('apps.blog.urls')),
         path('admin/', include('apps.blog.admin_urls')),
+        path('', include('enquiries.urls')),
+        path('', include('offers.urls')),
+        path('', include('reviews.urls')),
+        path('', include('dashboard.urls')),
     ])),
     
     # Router URLs
