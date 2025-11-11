@@ -4,9 +4,13 @@ Admin views for the blog app.
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
 from django.contrib.auth import get_user_model
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.utils import timezone
 from .models import BlogPost, Category, Tag, Review, Enquiry, Offer
 from .serializers import (
     BlogPostDetailSerializer,
@@ -14,6 +18,7 @@ from .serializers import (
     CategorySerializer,
     TagSerializer
 )
+import os
 
 User = get_user_model()
 
@@ -274,4 +279,306 @@ def create_offer(request):
         'id': offer.id,
         'title': offer.title,
         'message': 'Offer created successfully'
+    }, status=status.HTTP_201_CREATED)
+
+
+# Additional Blog Post Views
+class AdminBlogPostUpdateView(generics.UpdateAPIView):
+    """Admin view for updating blog posts."""
+    serializer_class = BlogPostDetailSerializer
+    permission_classes = [IsAdminUser]
+    queryset = BlogPost.objects.filter(is_deleted=False)
+
+
+class AdminBlogPostDeleteView(generics.DestroyAPIView):
+    """Admin view for deleting blog posts."""
+    permission_classes = [IsAdminUser]
+    queryset = BlogPost.objects.filter(is_deleted=False)
+
+
+# Category and Tag Admin Views
+class AdminCategoryListView(generics.ListCreateAPIView):
+    """Admin view for managing categories."""
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminUser]
+    queryset = Category.objects.filter(is_active=True)
+
+
+class AdminCategoryCreateView(generics.CreateAPIView):
+    """Admin view for creating categories."""
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminUser]
+
+
+class AdminTagListView(generics.ListCreateAPIView):
+    """Admin view for managing tags."""
+    serializer_class = TagSerializer
+    permission_classes = [IsAdminUser]
+    queryset = Tag.objects.all()
+
+
+class AdminTagCreateView(generics.CreateAPIView):
+    """Admin view for creating tags."""
+    serializer_class = TagSerializer
+    permission_classes = [IsAdminUser]
+
+
+# Enhanced User Management Views
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_user_detail(request, user_id):
+    """Get detailed user information."""
+    try:
+        user = User.objects.get(id=user_id)
+        user_data = {
+            'id': user.id,
+            'email': user.email,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'phone_number': user.phone_number,
+            'address': user.address,
+            'date_of_birth': user.date_of_birth,
+            'profile_picture': user.profile_picture.url if user.profile_picture else None,
+            'is_verified': user.is_verified,
+            'is_active': user.is_active,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+            'date_joined': user.date_joined,
+            'last_login': user.last_login,
+        }
+        return Response(user_data)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def admin_user_update(request, user_id):
+    """Update user information."""
+    try:
+        user = User.objects.get(id=user_id)
+        data = request.data
+
+        # Update user fields
+        user.first_name = data.get('first_name', user.first_name)
+        user.last_name = data.get('last_name', user.last_name)
+        user.email = data.get('email', user.email)
+        user.phone_number = data.get('phone_number', user.phone_number)
+        user.address = data.get('address', user.address)
+        user.is_active = data.get('is_active', user.is_active)
+        user.is_verified = data.get('is_verified', user.is_verified)
+
+        user.save()
+
+        return Response({'message': 'User updated successfully'})
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def admin_user_delete(request, user_id):
+    """Delete user (soft delete by deactivating)."""
+    try:
+        user = User.objects.get(id=user_id)
+        user.is_active = False
+        user.save()
+        return Response({'message': 'User deactivated successfully'})
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# Enhanced Review Management Views
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def admin_review_update(request, review_id):
+    """Update review."""
+    try:
+        review = Review.objects.get(id=review_id, is_deleted=False)
+        data = request.data
+
+        review.title = data.get('title', review.title)
+        review.content = data.get('content', review.content)
+        review.rating = data.get('rating', review.rating)
+        review.is_approved = data.get('is_approved', review.is_approved)
+        review.is_featured = data.get('is_featured', review.is_featured)
+
+        review.save()
+
+        return Response({'message': 'Review updated successfully'})
+    except Review.DoesNotExist:
+        return Response({'error': 'Review not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def admin_review_delete(request, review_id):
+    """Delete review (soft delete)."""
+    try:
+        review = Review.objects.get(id=review_id, is_deleted=False)
+        review.is_deleted = True
+        review.save()
+        return Response({'message': 'Review deleted successfully'})
+    except Review.DoesNotExist:
+        return Response({'error': 'Review not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def admin_review_approve(request, review_id):
+    """Approve or reject review."""
+    try:
+        review = Review.objects.get(id=review_id, is_deleted=False)
+        is_approved = request.data.get('is_approved', True)
+        review.is_approved = is_approved
+        review.save()
+        return Response({'message': f'Review {"approved" if is_approved else "rejected"} successfully'})
+    except Review.DoesNotExist:
+        return Response({'error': 'Review not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# Enhanced Enquiry Management Views
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def admin_enquiry_update(request, enquiry_id):
+    """Update enquiry."""
+    try:
+        enquiry = Enquiry.objects.get(id=enquiry_id, is_deleted=False)
+        data = request.data
+
+        enquiry.name = data.get('name', enquiry.name)
+        enquiry.email = data.get('email', enquiry.email)
+        enquiry.phone = data.get('phone', enquiry.phone)
+        enquiry.service_type = data.get('service_type', enquiry.service_type)
+        enquiry.property_type = data.get('property_type', enquiry.property_type)
+        enquiry.pest_types = data.get('pest_types', enquiry.pest_types)
+        enquiry.address = data.get('address', enquiry.address)
+        enquiry.message = data.get('message', enquiry.message)
+        enquiry.status = data.get('status', enquiry.status)
+        enquiry.priority = data.get('priority', enquiry.priority)
+
+        enquiry.save()
+
+        return Response({'message': 'Enquiry updated successfully'})
+    except Enquiry.DoesNotExist:
+        return Response({'error': 'Enquiry not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def admin_enquiry_delete(request, enquiry_id):
+    """Delete enquiry (soft delete)."""
+    try:
+        enquiry = Enquiry.objects.get(id=enquiry_id, is_deleted=False)
+        enquiry.is_deleted = True
+        enquiry.save()
+        return Response({'message': 'Enquiry deleted successfully'})
+    except Enquiry.DoesNotExist:
+        return Response({'error': 'Enquiry not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# Enhanced Offer Management Views
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_offer_detail(request, offer_id):
+    """Get offer details."""
+    try:
+        offer = Offer.objects.get(id=offer_id, is_deleted=False)
+        offer_data = {
+            'id': offer.id,
+            'title': offer.title,
+            'description': offer.description,
+            'discount_percentage': offer.discount_percentage,
+            'discount_amount': offer.discount_amount,
+            'code': offer.code,
+            'image': offer.image.url if offer.image else None,
+            'valid_from': offer.valid_from,
+            'valid_until': offer.valid_until,
+            'is_active': offer.is_active,
+            'usage_limit': offer.usage_limit,
+            'used_count': offer.used_count,
+            'terms_conditions': offer.terms_conditions,
+            'created_at': offer.created_at,
+        }
+        return Response(offer_data)
+    except Offer.DoesNotExist:
+        return Response({'error': 'Offer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def admin_offer_update(request, offer_id):
+    """Update offer."""
+    try:
+        offer = Offer.objects.get(id=offer_id, is_deleted=False)
+        data = request.data
+
+        offer.title = data.get('title', offer.title)
+        offer.description = data.get('description', offer.description)
+        offer.discount_percentage = data.get('discount_percentage', offer.discount_percentage)
+        offer.discount_amount = data.get('discount_amount', offer.discount_amount)
+        offer.code = data.get('code', offer.code)
+        offer.valid_from = data.get('valid_from', offer.valid_from)
+        offer.valid_until = data.get('valid_until', offer.valid_until)
+        offer.is_active = data.get('is_active', offer.is_active)
+        offer.usage_limit = data.get('usage_limit', offer.usage_limit)
+        offer.terms_conditions = data.get('terms_conditions', offer.terms_conditions)
+
+        if 'image' in request.FILES:
+            offer.image = request.FILES['image']
+
+        offer.save()
+
+        return Response({'message': 'Offer updated successfully'})
+    except Offer.DoesNotExist:
+        return Response({'error': 'Offer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def admin_offer_delete(request, offer_id):
+    """Delete offer (soft delete)."""
+    try:
+        offer = Offer.objects.get(id=offer_id, is_deleted=False)
+        offer.is_deleted = True
+        offer.save()
+        return Response({'message': 'Offer deleted successfully'})
+    except Offer.DoesNotExist:
+        return Response({'error': 'Offer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# File Upload View
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def upload_file(request):
+    """Upload file for admin use."""
+    parser_classes = [MultiPartParser, FormParser]
+
+    if 'file' not in request.FILES:
+        return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    file_obj = request.FILES['file']
+    file_type = request.data.get('type', 'general')
+
+    # Create directory if it doesn't exist
+    upload_dir = f'uploads/admin/{file_type}/'
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generate unique filename
+    file_extension = os.path.splitext(file_obj.name)[1]
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'{file_type}_{timestamp}{file_extension}'
+
+    # Save file
+    file_path = os.path.join(upload_dir, filename)
+    file_name = default_storage.save(file_path, ContentFile(file_obj.read()))
+
+    # Return file URL
+    file_url = default_storage.url(file_name)
+
+    return Response({
+        'url': file_url,
+        'filename': filename,
+        'message': 'File uploaded successfully'
     }, status=status.HTTP_201_CREATED)
