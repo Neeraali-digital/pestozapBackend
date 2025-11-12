@@ -3,8 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import OfferViewSet
 
 router = DefaultRouter()
-router.register(r'offers', OfferViewSet)
+router.register(r'', OfferViewSet)
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]

@@ -3,8 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import EnquiryViewSet
 
 router = DefaultRouter()
-router.register(r'enquiries', EnquiryViewSet)
+router.register(r'', EnquiryViewSet)
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]

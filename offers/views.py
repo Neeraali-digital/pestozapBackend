@@ -28,9 +28,3 @@ class OfferViewSet(viewsets.ModelViewSet):
             'total_usage': total_usage
         })
     
-    @action(detail=True, methods=['patch'])
-    def toggle_status(self, request, pk=None):
-        offer = self.get_object()
-        offer.status = 'active' if offer.status == 'inactive' else 'inactive'
-        offer.save()
-        return Response({'status': offer.status})

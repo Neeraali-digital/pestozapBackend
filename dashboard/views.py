@@ -4,8 +4,11 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Sum, Avg
 from django.utils import timezone
 from datetime import timedelta
-from apps.blog.models import Enquiry, Offer, Review, BlogPost
+from apps.blog.models import BlogPost
 from apps.users.models import User
+from enquiries.models import Enquiry
+from offers.models import Offer
+from reviews.models import Review
 
 class IsAdminUser:
     """Custom permission to only allow admin users."""
@@ -29,12 +32,12 @@ def dashboard_stats(request):
     # Basic stats
     total_users = User.objects.count()
     active_users = User.objects.filter(is_active=True).count()
-    total_enquiries = Enquiry.objects.filter(is_deleted=False).count()
-    new_enquiries = Enquiry.objects.filter(status='new', is_deleted=False).count()
-    total_reviews = Review.objects.filter(is_deleted=False).count()
-    approved_reviews = Review.objects.filter(is_approved=True, is_deleted=False).count()
-    total_offers = Offer.objects.filter(is_deleted=False).count()
-    active_offers = Offer.objects.filter(is_active=True, is_deleted=False).count()
+    total_enquiries = Enquiry.objects.count()
+    new_enquiries = Enquiry.objects.filter(status='new').count()
+    total_reviews = Review.objects.count()
+    approved_reviews = Review.objects.filter(is_approved=True).count()
+    total_offers = Offer.objects.count()
+    active_offers = Offer.objects.filter(status='active').count()
     total_posts = BlogPost.objects.filter(is_deleted=False).count()
     published_posts = BlogPost.objects.filter(status='published', is_deleted=False).count()
 
@@ -44,7 +47,7 @@ def dashboard_stats(request):
     revenue_change = 12.5  # This would be calculated from historical data
 
     # Customer satisfaction from approved reviews
-    avg_rating = Review.objects.filter(is_approved=True, is_deleted=False).aggregate(
+    avg_rating = Review.objects.filter(is_approved=True).aggregate(
         avg_rating=Avg('rating')
     )['avg_rating'] or 0
     customer_satisfaction = round(avg_rating * 20, 1)  # Convert 5-star to percentage
@@ -53,19 +56,19 @@ def dashboard_stats(request):
     activities = []
 
     # Recent enquiries
-    recent_enquiries = Enquiry.objects.filter(is_deleted=False).order_by('-created_at')[:3]
+    recent_enquiries = Enquiry.objects.order_by('-created_at')[:3]
     for enquiry in recent_enquiries:
         activities.append({
-            'action': f'New service request from {enquiry.name}',
+            'action': f'New service request from {enquiry.customer_name}',
             'time': enquiry.created_at.strftime('%Y-%m-%d %H:%M'),
             'type': 'request'
         })
 
     # Recent reviews
-    recent_reviews = Review.objects.filter(is_deleted=False).order_by('-created_at')[:3]
+    recent_reviews = Review.objects.order_by('-created_at')[:3]
     for review in recent_reviews:
         activities.append({
-            'action': f'New review from {review.user.get_full_name() if review.user.get_full_name() else review.user.username}',
+            'action': f'New review from {review.name}',
             'time': review.created_at.strftime('%Y-%m-%d %H:%M'),
             'type': 'review'
         })
@@ -104,15 +107,14 @@ def dashboard_stats(request):
 
         month_enquiries = Enquiry.objects.filter(
             created_at__gte=month_start,
-            created_at__lte=month_end,
-            is_deleted=False
+            created_at__lte=month_end
         ).count()
 
         revenue_labels.append(label)
         revenue_data.append(month_enquiries * 500)  # Mock revenue calculation
 
     # Services distribution
-    service_counts = Enquiry.objects.filter(is_deleted=False).values('service_type').annotate(
+    service_counts = Enquiry.objects.values('service_type').annotate(
         count=Count('service_type')
     ).order_by('-count')[:4]
 

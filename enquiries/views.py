@@ -27,13 +27,3 @@ class EnquiryViewSet(viewsets.ModelViewSet):
             'in_progress': in_progress,
             'resolved': resolved
         })
-    
-    @action(detail=True, methods=['patch'])
-    def update_status(self, request, pk=None):
-        enquiry = self.get_object()
-        new_status = request.data.get('status')
-        if new_status in ['new', 'in-progress', 'resolved']:
-            enquiry.status = new_status
-            enquiry.save()
-            return Response({'status': 'updated'})
-        return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
