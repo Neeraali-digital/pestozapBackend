@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Enquiry
@@ -13,6 +14,11 @@ class EnquiryViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'priority', 'service_type']
     search_fields = ['subject', 'customer_name', 'email']
     ordering_fields = ['created_at', 'priority']
+    
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     @action(detail=False, methods=['get'])
     def stats(self, request):

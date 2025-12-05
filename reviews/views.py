@@ -1,6 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Avg
@@ -14,6 +15,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
     filterset_fields = ['rating', 'is_approved']
     search_fields = ['name', 'comment']
     ordering_fields = ['created_at', 'rating']
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     @action(detail=False, methods=['get'])
     def stats(self, request):

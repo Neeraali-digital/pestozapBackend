@@ -45,9 +45,9 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'email', 'username', 'first_name', 'last_name',
             'phone_number', 'address', 'date_of_birth', 'profile_picture',
-            'is_verified', 'full_name', 'profile', 'date_joined'
+            'is_verified', 'is_staff', 'is_superuser', 'full_name', 'profile', 'date_joined'
         )
-        read_only_fields = ('id', 'is_verified', 'date_joined')
+        read_only_fields = ('id', 'is_verified', 'is_staff', 'is_superuser', 'date_joined')
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -67,3 +67,33 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+class AdminCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating admin users.
+    """
+    password = serializers.CharField(write_only=True, min_length=6)
+    
+    class Meta:
+        model = User
+        fields = ('email', 'password', 'first_name', 'last_name')
+    
+    def create(self, validated_data):
+        """Create admin user with staff and superuser privileges."""
+        password = validated_data.pop('password')
+        email = validated_data['email']
+        
+        # Generate username from email
+        username = email.split('@')[0]
+        
+        user = User.objects.create_user(
+            username=username,
+            **validated_data,
+            is_staff=True,
+            is_superuser=True,
+            is_verified=True
+        )
+        user.set_password(password)
+        user.save()
+        return user

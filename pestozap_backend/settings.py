@@ -32,12 +32,14 @@ THIRD_PARTY_APPS = [
     'corsheaders',
     'django_filters',
     'djoser',
+    'drf_yasg',
 ]
 
 LOCAL_APPS = [
     'apps.users',
     'apps.blog',
     'apps.common',
+    'apps.careers',
     'enquiries',
     'offers',
     'reviews',

@@ -5,11 +5,14 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from .models import UserProfile
 from .serializers import (
     UserSerializer,
     UserUpdateSerializer,
-    UserProfileSerializer
+    UserProfileSerializer,
+    AdminCreateSerializer
 )
 
 User = get_user_model()
@@ -106,6 +109,54 @@ def user_stats(request):
         'profile_completion': calculate_profile_completion(user),
     }
     return Response(stats, status=status.HTTP_200_OK)
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Create admin user with staff and superuser privileges",
+    request_body=AdminCreateSerializer,
+    responses={
+        201: openapi.Response(
+            description="Admin user created successfully",
+            examples={
+                "application/json": {
+                    "message": "Admin user created successfully",
+                    "user": {
+                        "id": 1,
+                        "email": "admin@example.com",
+                        "first_name": "Admin",
+                        "last_name": "User",
+                        "is_staff": True,
+                        "is_superuser": True
+                    }
+                }
+            }
+        ),
+        400: "Bad Request - Invalid data"
+    },
+    tags=['Admin Management']
+)
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def create_admin(request):
+    """
+    Create admin user - for initial setup only.
+    """
+    serializer = AdminCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        return Response({
+            'message': 'Admin user created successfully',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_staff': user.is_staff,
+                'is_superuser': user.is_superuser
+            }
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 def calculate_profile_completion(user):

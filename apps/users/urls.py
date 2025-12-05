@@ -13,4 +13,5 @@ urlpatterns = [
     path('profile/picture/upload/', views.upload_profile_picture, name='upload-profile-picture'),
     path('profile/picture/delete/', views.delete_profile_picture, name='delete-profile-picture'),
     path('stats/', views.user_stats, name='user-stats'),
+    path('create-admin/', views.create_admin, name='create-admin'),
 ]
