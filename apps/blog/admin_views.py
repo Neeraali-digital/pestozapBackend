@@ -11,7 +11,10 @@ from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils import timezone
-from .models import BlogPost, Category, Tag, Review, Enquiry, Offer
+from .models import BlogPost, Category, Tag
+from reviews.models import Review
+from enquiries.models import Enquiry
+from offers.models import Offer
 from .serializers import (
     BlogPostDetailSerializer,
     BlogPostCreateSerializer,
