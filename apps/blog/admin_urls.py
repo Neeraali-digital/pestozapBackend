@@ -12,7 +12,6 @@ urlpatterns = [
 
     # Blog Management
     path('blog/posts/', admin_views.AdminBlogPostListView.as_view(), name='admin-blog-list'),
-    path('blog/posts/create/', admin_views.AdminBlogPostCreateView.as_view(), name='admin-blog-create'),
     path('blog/posts/<int:pk>/', admin_views.AdminBlogPostDetailView.as_view(), name='admin-blog-detail'),
     path('blog/posts/<int:pk>/update/', admin_views.AdminBlogPostUpdateView.as_view(), name='admin-blog-update'),
     path('blog/posts/<int:pk>/delete/', admin_views.AdminBlogPostDeleteView.as_view(), name='admin-blog-delete'),

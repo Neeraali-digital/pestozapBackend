@@ -60,8 +60,8 @@ def dashboard_stats(request):
 
 
 # Blog Post Admin Views
-class AdminBlogPostListView(generics.ListAPIView):
-    """Admin view for listing all blog posts."""
+class AdminBlogPostListView(generics.ListCreateAPIView):
+    """Admin view for listing and creating blog posts."""
     serializer_class = BlogPostDetailSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend]
@@ -71,6 +71,19 @@ class AdminBlogPostListView(generics.ListAPIView):
         return BlogPost.objects.filter(is_deleted=False).select_related(
             'author', 'category'
         ).prefetch_related('tags')
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return BlogPostCreateSerializer
+        return BlogPostDetailSerializer
+    
+    def perform_create(self, serializer):
+        """Set author and published_at when creating."""
+        from django.utils import timezone
+        blog_post = serializer.save(author=self.request.user)
+        if blog_post.status == 'published' and not blog_post.published_at:
+            blog_post.published_at = timezone.now()
+            blog_post.save()
 
 
 class AdminBlogPostDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -82,10 +95,7 @@ class AdminBlogPostDetailView(generics.RetrieveUpdateDestroyAPIView):
         return BlogPost.objects.filter(is_deleted=False)
 
 
-class AdminBlogPostCreateView(generics.CreateAPIView):
-    """Admin view for creating blog posts."""
-    serializer_class = BlogPostCreateSerializer
-    permission_classes = [IsAdminUser]
+
 
 
 # User Management Views
@@ -291,6 +301,17 @@ class AdminBlogPostUpdateView(generics.UpdateAPIView):
     serializer_class = BlogPostDetailSerializer
     permission_classes = [IsAdminUser]
     queryset = BlogPost.objects.filter(is_deleted=False)
+    
+    def perform_update(self, serializer):
+        """Set published_at when status changes to published."""
+        from django.utils import timezone
+        instance = serializer.instance
+        old_status = instance.status
+        blog_post = serializer.save()
+        
+        if blog_post.status == 'published' and old_status != 'published' and not blog_post.published_at:
+            blog_post.published_at = timezone.now()
+            blog_post.save()
 
 
 class AdminBlogPostDeleteView(generics.DestroyAPIView):
@@ -564,17 +585,13 @@ def upload_file(request):
     file_obj = request.FILES['file']
     file_type = request.data.get('type', 'general')
 
-    # Create directory if it doesn't exist
-    upload_dir = f'uploads/admin/{file_type}/'
-    os.makedirs(upload_dir, exist_ok=True)
-
     # Generate unique filename
     file_extension = os.path.splitext(file_obj.name)[1]
     timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
     filename = f'{file_type}_{timestamp}{file_extension}'
 
-    # Save file
-    file_path = os.path.join(upload_dir, filename)
+    # Save file to media directory
+    file_path = f'uploads/admin/{file_type}/{filename}'
     file_name = default_storage.save(file_path, ContentFile(file_obj.read()))
 
     # Return file URL

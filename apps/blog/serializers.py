@@ -74,7 +74,8 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
     Serializer for blog post detail view.
     """
     author = AuthorSerializer(read_only=True)
-    category = CategorySerializer(read_only=True)
+    category_detail = CategorySerializer(source='category', read_only=True)
+    category = serializers.IntegerField(required=False, write_only=True)
     tags = TagSerializer(many=True, read_only=True)
     comments_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
@@ -83,7 +84,7 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
         model = BlogPost
         fields = (
             'id', 'title', 'slug', 'excerpt', 'content', 'featured_image',
-            'author', 'category', 'tags', 'status', 'is_featured',
+            'author', 'category', 'category_detail', 'tags', 'status', 'is_featured',
             'read_time', 'views_count', 'likes_count', 'comments_count',
             'meta_title', 'meta_description', 'published_at', 'created_at',
             'updated_at', 'is_liked'
@@ -99,6 +100,39 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return BlogLike.objects.filter(post=obj, user=request.user).exists()
         return False
+    
+    def update(self, instance, validated_data):
+        """Update blog post and set published_at if status changes to published."""
+        from django.utils import timezone
+        old_status = instance.status
+        
+        # Handle category update
+        if 'category' in validated_data:
+            category_id = validated_data.pop('category')
+            category_map = {
+                1: 'Tips & Tricks',
+                2: 'Prevention',
+                3: 'Eco-Friendly',
+                4: 'Home Care',
+                5: 'Commercial',
+                6: 'Seasonal'
+            }
+            category_name = category_map.get(category_id, 'Tips & Tricks')
+            category, _ = Category.objects.get_or_create(
+                name=category_name,
+                defaults={'is_active': True}
+            )
+            instance.category = category
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Set published_at when status changes to published
+        if instance.status == 'published' and old_status != 'published' and not instance.published_at:
+            instance.published_at = timezone.now()
+        
+        instance.save()
+        return instance
 
 
 class BlogPostCreateSerializer(serializers.ModelSerializer):
@@ -110,19 +144,55 @@ class BlogPostCreateSerializer(serializers.ModelSerializer):
         queryset=Tag.objects.all(),
         required=False
     )
+    category = serializers.IntegerField(required=True, write_only=True)
+    featured_image_url = serializers.CharField(required=False, write_only=True)
 
     class Meta:
         model = BlogPost
         fields = (
             'title', 'excerpt', 'content', 'featured_image',
             'category', 'tags', 'status', 'is_featured',
-            'read_time', 'meta_title', 'meta_description'
+            'read_time', 'meta_title', 'meta_description', 'featured_image_url'
         )
 
     def create(self, validated_data):
         """Create a new blog post."""
+        from django.utils import timezone
+        from django.core.files.base import ContentFile
+        import requests
+        import os
+        
         tags = validated_data.pop('tags', [])
-        validated_data['author'] = self.context['request'].user
+        category_id = validated_data.pop('category')
+        featured_image_url = validated_data.pop('featured_image_url', None)
+        
+        # Map category IDs to names and create if not exists
+        category_map = {
+            1: 'Tips & Tricks',
+            2: 'Prevention',
+            3: 'Eco-Friendly',
+            4: 'Home Care',
+            5: 'Commercial',
+            6: 'Seasonal'
+        }
+        
+        category_name = category_map.get(category_id, 'Tips & Tricks')
+        category, _ = Category.objects.get_or_create(
+            name=category_name,
+            defaults={'is_active': True}
+        )
+        validated_data['category'] = category
+        
+        # Handle featured image URL
+        if featured_image_url and featured_image_url.startswith('/media/'):
+            # Convert URL to file path and set the image
+            from django.conf import settings
+            file_path = featured_image_url.replace('/media/', '')
+            validated_data['featured_image'] = file_path
+        
+        # Set published_at if status is published
+        if validated_data.get('status') == 'published' and 'published_at' not in validated_data:
+            validated_data['published_at'] = timezone.now()
         
         blog_post = BlogPost.objects.create(**validated_data)
         blog_post.tags.set(tags)
