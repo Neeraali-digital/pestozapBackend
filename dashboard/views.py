@@ -147,6 +147,7 @@ def dashboard_stats(request):
             'revenue_change': revenue_change,
             'active_users': active_users,
             'total_enquiries': total_enquiries,
+            'new_enquiries': new_enquiries,
             'customer_satisfaction': customer_satisfaction,
             'total_reviews': total_reviews,
             'total_offers': total_offers,
