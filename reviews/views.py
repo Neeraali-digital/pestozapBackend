@@ -2,6 +2,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Avg
@@ -20,6 +21,13 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        display_location = self.request.query_params.get('display_location', None)
+        if display_location:
+            queryset = queryset.filter(display_location__in=[display_location, 'both'])
+        return queryset
     
     @action(detail=False, methods=['get'])
     def stats(self, request):
