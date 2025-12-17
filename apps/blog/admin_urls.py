@@ -36,8 +36,7 @@ urlpatterns = [
 
     # Enquiry Management
     path('enquiries/', admin_views.admin_enquiries_list, name='admin-enquiries-list'),
-    path('enquiries/<int:enquiry_id>/update/', admin_views.admin_enquiry_update, name='admin-enquiry-update'),
-    path('enquiries/<int:enquiry_id>/delete/', admin_views.admin_enquiry_delete, name='admin-enquiry-delete'),
+    path('enquiries/<int:enquiry_id>/', admin_views.admin_enquiry_detail, name='admin-enquiry-detail'),
 
     # Offer Management
     path('offers/', admin_views.admin_offers_list, name='admin-offers-list'),

@@ -11,7 +11,7 @@ class EnquiryViewSet(viewsets.ModelViewSet):
     queryset = Enquiry.objects.all()
     serializer_class = EnquirySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'priority', 'service_type']
+    filterset_fields = ['status', 'priority', 'service_type', 'type']
     search_fields = ['subject', 'customer_name', 'email']
     ordering_fields = ['created_at', 'priority']
     

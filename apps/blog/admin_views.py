@@ -192,36 +192,58 @@ def admin_reviews_list(request):
 def admin_enquiries_list(request):
     """Get paginated list of enquiries."""
     from django.core.paginator import Paginator
-    
-    enquiries = Enquiry.objects.filter(is_deleted=False).order_by('-created_at')
-    
+
+    enquiries = Enquiry.objects.all().order_by('-created_at')
+
+    # Filter by type
+    type_filter = request.GET.get('type')
+    if type_filter:
+        enquiries = enquiries.filter(type=type_filter)
+
     # Filter by status
     status_filter = request.GET.get('status')
     if status_filter:
         enquiries = enquiries.filter(status=status_filter)
-    
+
+    # Filter by service_type
+    service_filter = request.GET.get('service_type')
+    if service_filter:
+        enquiries = enquiries.filter(service_type=service_filter)
+
+    # Search
+    search = request.GET.get('search')
+    if search:
+        enquiries = enquiries.filter(
+            Q(customer_name__icontains=search) |
+            Q(email__icontains=search) |
+            Q(subject__icontains=search)
+        )
+
     # Pagination
     page = request.GET.get('page', 1)
     paginator = Paginator(enquiries, 20)
     page_obj = paginator.get_page(page)
-    
+
     enquiry_data = []
     for enquiry in page_obj:
         enquiry_data.append({
             'id': enquiry.id,
-            'name': enquiry.name,
+            'type': enquiry.type,
+            'name': enquiry.customer_name,
             'email': enquiry.email,
             'phone': enquiry.phone,
+            'subject': enquiry.subject,
             'service_type': enquiry.service_type,
             'property_type': enquiry.property_type,
-            'pest_types': enquiry.pest_types,
+            'pest_types': enquiry.pests,
             'address': enquiry.address,
             'message': enquiry.message,
             'status': enquiry.status,
             'priority': enquiry.priority,
             'created_at': enquiry.created_at,
+            'updated_at': enquiry.updated_at,
         })
-    
+
     return Response({
         'results': enquiry_data,
         'count': paginator.count,
@@ -463,41 +485,50 @@ def admin_review_approve(request, review_id):
 
 
 # Enhanced Enquiry Management Views
-@api_view(['PUT'])
+@api_view(['PUT', 'DELETE'])
 @permission_classes([IsAdminUser])
-def admin_enquiry_update(request, enquiry_id):
-    """Update enquiry."""
+def admin_enquiry_detail(request, enquiry_id):
+    """Update or delete enquiry."""
     try:
-        enquiry = Enquiry.objects.get(id=enquiry_id, is_deleted=False)
-        data = request.data
+        enquiry = Enquiry.objects.get(id=enquiry_id)
 
-        enquiry.name = data.get('name', enquiry.name)
-        enquiry.email = data.get('email', enquiry.email)
-        enquiry.phone = data.get('phone', enquiry.phone)
-        enquiry.service_type = data.get('service_type', enquiry.service_type)
-        enquiry.property_type = data.get('property_type', enquiry.property_type)
-        enquiry.pest_types = data.get('pest_types', enquiry.pest_types)
-        enquiry.address = data.get('address', enquiry.address)
-        enquiry.message = data.get('message', enquiry.message)
-        enquiry.status = data.get('status', enquiry.status)
-        enquiry.priority = data.get('priority', enquiry.priority)
+        if request.method == 'PUT':
+            data = request.data
+            enquiry.customer_name = data.get('name', enquiry.customer_name)
+            enquiry.email = data.get('email', enquiry.email)
+            enquiry.phone = data.get('phone', enquiry.phone)
+            enquiry.service_type = data.get('service_type', enquiry.service_type)
+            enquiry.property_type = data.get('property_type', enquiry.property_type)
+            enquiry.pests = data.get('pest_types', enquiry.pests)
+            enquiry.address = data.get('address', enquiry.address)
+            enquiry.message = data.get('message', enquiry.message)
+            enquiry.status = data.get('status', enquiry.status)
+            enquiry.priority = data.get('priority', enquiry.priority)
+            enquiry.save()
+            # Return the updated enquiry object
+            updated_data = {
+                'id': enquiry.id,
+                'type': enquiry.type,
+                'name': enquiry.customer_name,
+                'email': enquiry.email,
+                'phone': enquiry.phone,
+                'subject': enquiry.subject,
+                'service_type': enquiry.service_type,
+                'property_type': enquiry.property_type,
+                'pest_types': enquiry.pests,
+                'address': enquiry.address,
+                'message': enquiry.message,
+                'status': enquiry.status,
+                'priority': enquiry.priority,
+                'created_at': enquiry.created_at,
+                'updated_at': enquiry.updated_at,
+            }
+            return Response(updated_data)
 
-        enquiry.save()
+        elif request.method == 'DELETE':
+            enquiry.delete()
+            return Response({'message': 'Enquiry deleted successfully'})
 
-        return Response({'message': 'Enquiry updated successfully'})
-    except Enquiry.DoesNotExist:
-        return Response({'error': 'Enquiry not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['DELETE'])
-@permission_classes([IsAdminUser])
-def admin_enquiry_delete(request, enquiry_id):
-    """Delete enquiry (soft delete)."""
-    try:
-        enquiry = Enquiry.objects.get(id=enquiry_id, is_deleted=False)
-        enquiry.is_deleted = True
-        enquiry.save()
-        return Response({'message': 'Enquiry deleted successfully'})
     except Enquiry.DoesNotExist:
         return Response({'error': 'Enquiry not found'}, status=status.HTTP_404_NOT_FOUND)
 
