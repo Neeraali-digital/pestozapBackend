@@ -228,7 +228,7 @@ def admin_enquiries_list(request):
     for enquiry in page_obj:
         enquiry_data.append({
             'id': enquiry.id,
-            'type': enquiry.type,
+            'type': enquiry.get_type_display(),
             'name': enquiry.customer_name,
             'email': enquiry.email,
             'phone': enquiry.phone,
@@ -256,31 +256,34 @@ def admin_enquiries_list(request):
 def admin_offers_list(request):
     """Get paginated list of offers."""
     from django.core.paginator import Paginator
-    
+
     offers = Offer.objects.filter(is_deleted=False).order_by('-created_at')
-    
+
     # Pagination
     page = request.GET.get('page', 1)
     paginator = Paginator(offers, 20)
     page_obj = paginator.get_page(page)
-    
+
     offer_data = []
     for offer in page_obj:
         offer_data.append({
             'id': offer.id,
             'title': offer.title,
             'description': offer.description,
-            'discount_percentage': offer.discount_percentage,
+            'discount': offer.discount,
+            'discount_type': offer.discount_type,
             'code': offer.code,
-            'image': offer.image.url if offer.image else None,
+            'image': offer.image,
             'valid_from': offer.valid_from,
-            'valid_until': offer.valid_until,
-            'is_active': offer.is_active,
+            'valid_to': offer.valid_to,
+            'status': offer.status,
             'usage_limit': offer.usage_limit,
             'used_count': offer.used_count,
+            'services': offer.services,
             'created_at': offer.created_at,
+            'updated_at': offer.updated_at,
         })
-    
+
     return Response({
         'results': offer_data,
         'count': paginator.count,
@@ -508,7 +511,7 @@ def admin_enquiry_detail(request, enquiry_id):
             # Return the updated enquiry object
             updated_data = {
                 'id': enquiry.id,
-                'type': enquiry.type,
+                'type': enquiry.get_type_display(),
                 'name': enquiry.customer_name,
                 'email': enquiry.email,
                 'phone': enquiry.phone,
@@ -544,17 +547,18 @@ def admin_offer_detail(request, offer_id):
             'id': offer.id,
             'title': offer.title,
             'description': offer.description,
-            'discount_percentage': offer.discount_percentage,
-            'discount_amount': offer.discount_amount,
+            'discount': offer.discount,
+            'discount_type': offer.discount_type,
             'code': offer.code,
-            'image': offer.image.url if offer.image else None,
+            'image': offer.image,
             'valid_from': offer.valid_from,
-            'valid_until': offer.valid_until,
-            'is_active': offer.is_active,
+            'valid_to': offer.valid_to,
+            'status': offer.status,
             'usage_limit': offer.usage_limit,
             'used_count': offer.used_count,
-            'terms_conditions': offer.terms_conditions,
+            'services': offer.services,
             'created_at': offer.created_at,
+            'updated_at': offer.updated_at,
         }
         return Response(offer_data)
     except Offer.DoesNotExist:
@@ -571,14 +575,14 @@ def admin_offer_update(request, offer_id):
 
         offer.title = data.get('title', offer.title)
         offer.description = data.get('description', offer.description)
-        offer.discount_percentage = data.get('discount_percentage', offer.discount_percentage)
-        offer.discount_amount = data.get('discount_amount', offer.discount_amount)
+        offer.discount = data.get('discount', offer.discount)
+        offer.discount_type = data.get('discount_type', offer.discount_type)
         offer.code = data.get('code', offer.code)
         offer.valid_from = data.get('valid_from', offer.valid_from)
-        offer.valid_until = data.get('valid_until', offer.valid_until)
-        offer.is_active = data.get('is_active', offer.is_active)
+        offer.valid_to = data.get('valid_to', offer.valid_to)
+        offer.status = data.get('status', offer.status)
         offer.usage_limit = data.get('usage_limit', offer.usage_limit)
-        offer.terms_conditions = data.get('terms_conditions', offer.terms_conditions)
+        offer.services = data.get('services', offer.services)
 
         if 'image' in request.FILES:
             offer.image = request.FILES['image']

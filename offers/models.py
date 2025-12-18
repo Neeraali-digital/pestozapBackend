@@ -23,7 +23,6 @@ class Offer(models.Model):
     usage_limit = models.IntegerField(default=100)
     used_count = models.IntegerField(default=0)
     services = models.JSONField(default=list)
-    image = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
