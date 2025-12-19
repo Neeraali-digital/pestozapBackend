@@ -9,6 +9,8 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 class JobApplicationSerializer(serializers.ModelSerializer):
+    job_details = JobSerializer(source='job', read_only=True)
+
     class Meta:
         model = JobApplication
         fields = '__all__'
