@@ -36,7 +36,7 @@ class Enquiry(models.Model):
     customer_name = models.CharField(max_length=100)
     email = models.EmailField()
     phone = models.CharField(max_length=20)
-    service_type = models.CharField(max_length=20, choices=SERVICE_CHOICES, blank=True, null=True)
+    service_type = models.CharField(max_length=100, blank=True, null=True) # Removed choices for flexibility
     message = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
@@ -45,14 +45,18 @@ class Enquiry(models.Model):
 
     # Additional fields for enquiry form
     address = models.TextField(blank=True, null=True)
-    property_type = models.CharField(max_length=50, blank=True, null=True)
-    area = models.FloatField(blank=True, null=True)
+    property_type = models.CharField(max_length=100, blank=True, null=True)
+    area = models.CharField(max_length=100, blank=True, null=True) # Changed to CharField for ranges/text
     building_age = models.CharField(max_length=50, blank=True, null=True)
     pests = models.JSONField(blank=True, null=True)
     severity = models.CharField(max_length=50, blank=True, null=True)
     urgency = models.CharField(max_length=50, blank=True, null=True)
     preferred_time = models.CharField(max_length=100, blank=True, null=True)
     additional_info = models.TextField(blank=True, null=True)
+    
+    # New fields from Rate Cards
+    package_name = models.CharField(max_length=100, blank=True, null=True)
+    quoted_price = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         ordering = ['-created_at']
